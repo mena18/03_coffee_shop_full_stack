@@ -45,7 +45,10 @@ def headers(payload):
 def get_drinks():
     drinks = Drink.query.all()
     drinks = [drink.short() for drink in drinks]
-    return jsonify(drinks)
+    return jsonify({
+        "success":True,
+        "drinks":drinks
+        }),200
 
 
 '''
@@ -56,6 +59,16 @@ def get_drinks():
     returns status code 200 and json {"success": True, "drinks": drinks} where drinks is the list of drinks
         or appropriate status code indicating reason for failure
 '''
+
+
+@app.route('/drinks/<int:id>',methods=['GET'])
+@requires_auth('get:drinks-detail')
+def get_drinks_detail(payload,id):
+    drink = Drink.query.get_or_404(id)
+    return jsonify({
+        "success":True,
+        "drinks":drink.short()
+        }),200
 
 
 '''
@@ -69,6 +82,44 @@ def get_drinks():
 '''
 
 
+@app.route('/drinks',methods=['POST'])
+@requires_auth('post:drinks')
+def create_drink(payload):
+    r = request.get_json()
+    title = r.get('title',None)
+    recipe = r.get('recipe',None)
+    
+    
+    # if request dosen't contain title or recipe then it's bad request
+    if(not (title and recipe)  ):
+        abort(400)
+
+    # if found another drink then raise 422 error because title must be unique
+    drink = Drink.query.filter(Drink.title == title).one_or_none() 
+
+    if(drink):
+        abort(422,f"{title} already exists")
+
+
+    try:
+        drink = Drink()
+        drink.title = title
+        drink.recipe = json.dumps(recipe)
+        drink.insert()
+
+        return jsonify({
+            "success":True,
+            "drink":drink.long()
+        })
+
+    except :
+        abort(422,"unprocessable");
+
+
+    
+
+
+
 '''
 @TODO implement endpoint
     PATCH /drinks/<id>
@@ -80,6 +131,10 @@ def get_drinks():
     returns status code 200 and json {"success": True, "drinks": drink} where drink an array containing only the updated drink
         or appropriate status code indicating reason for failure
 '''
+
+# @app.route('/drinks',methods=['PATCH'])
+# def update_drinks(payload,id):
+    
 
 
 '''
@@ -101,29 +156,35 @@ Example error handling for unprocessable entity
 @app.errorhandler(422)
 def unprocessable(error):
     return jsonify({
-                    "success": False, 
-                    "error": 422,
-                    "message": "unprocessable"
-                    }), 422
+        "success": False, 
+        "error": 422,
+        "message": error.description
+    }), 422
 
-'''
-@TODO implement error handlers using the @app.errorhandler(error) decorator
-    each error handler should return (with approprate messages):
-             jsonify({
-                    "success": False, 
-                    "error": 404,
-                    "message": "resource not found"
-                    }), 404
 
-'''
 
 '''
 @TODO implement error handler for 404
     error handler should conform to general task above 
 '''
-
-
+@app.errorhandler(404)
+def not_found(error):
+    jsonify({
+        "success": False, 
+        "error": 404,
+        "message": "resource not found"
+    }), 404
 '''
 @TODO implement error handler for AuthError
     error handler should conform to general task above 
 '''
+
+# i changed autherror to abort it's status code and send it so it will be hancdeled inside the error handler
+@app.errorhandler(401)
+def unprocessable(error):
+    return jsonify({
+        "success": False, 
+        "error": 401,
+        "code": error.description['code'],
+        "description": error.description['description']
+    }), 401

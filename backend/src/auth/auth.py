@@ -1,5 +1,5 @@
 import json
-from flask import request, _request_ctx_stack
+from flask import request, _request_ctx_stack,abort
 from functools import wraps
 from jose import jwt
 from urllib.request import urlopen
@@ -16,8 +16,7 @@ A standardized way to communicate auth failure models
 '''
 class AuthError(Exception):
     def __init__(self, error, status_code):
-        self.error = error
-        self.status_code = status_code
+        abort(status_code,error)
 
 
 ## Auth Header
