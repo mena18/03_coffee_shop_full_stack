@@ -61,13 +61,14 @@ def get_drinks():
 '''
 
 
-@app.route('/drinks/<int:id>',methods=['GET'])
+@app.route('/drinks-detail',methods=['GET'])
 @requires_auth('get:drinks-detail')
-def get_drinks_detail(payload,id):
-    drink = Drink.query.get_or_404(id)
+def get_drinks_detail(payload):
+    drinks = Drink.query.all()
+    drinks = [drink.long() for drink in drinks]
     return jsonify({
         "success":True,
-        "drinks":drink.short()
+        "drinks":drinks
         }),200
 
 
@@ -109,8 +110,8 @@ def create_drink(payload):
 
         return jsonify({
             "success":True,
-            "drink":drink.long()
-        })
+            "drink":[drink.long()]
+        }),200
 
     except :
         abort(422,"unprocessable");
@@ -132,9 +133,32 @@ def create_drink(payload):
         or appropriate status code indicating reason for failure
 '''
 
-# @app.route('/drinks',methods=['PATCH'])
-# def update_drinks(payload,id):
+@app.route('/drinks/<int:id>',methods=['PATCH'])
+@requires_auth('patch:drinks')
+def update_drinks(payload,id):
+    drink = Drink.query.get_or_404(id);
+    r = request.get_json()
+    title = r.get('title',None)
+    recipe = r.get('recipe',None)
+    try:
+            
+        if(title):
+            drink.title = title
+        if(recipe):
+            drink.recipe = json.dumps(recipe)
+        
+        drink.update()
+    except :
+        abort(422,"unprocessable")
     
+    return jsonify({
+        "success":True,
+        "drinks":[drink.long()]
+    }),200
+
+
+    
+
 
 
 '''
@@ -147,6 +171,23 @@ def create_drink(payload):
     returns status code 200 and json {"success": True, "delete": id} where id is the id of the deleted record
         or appropriate status code indicating reason for failure
 '''
+
+
+
+@app.route('/drinks/<int:id>',methods=['DELETE'])
+@requires_auth('delete:drinks')
+def delete_drinks(payload,id):
+
+    # raise 404 error if drink dosen't exists
+    drink = Drink.query.get_or_404(id);
+    drink.delete()
+
+    return jsonify({
+        "success":True,
+        "delete":drink.id
+    }),200
+
+
 
 
 ## Error Handling
@@ -169,7 +210,7 @@ def unprocessable(error):
 '''
 @app.errorhandler(404)
 def not_found(error):
-    jsonify({
+    return jsonify({
         "success": False, 
         "error": 404,
         "message": "resource not found"
@@ -188,3 +229,13 @@ def unprocessable(error):
         "code": error.description['code'],
         "description": error.description['description']
     }), 401
+
+
+@app.errorhandler(403)
+def unprocessable(error):
+    return jsonify({
+        "success": False, 
+        "error": 403,
+        "code": error.description['code'],
+        "description": error.description['description']
+    }), 403
