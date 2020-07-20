@@ -11,6 +11,18 @@ app = Flask(__name__)
 setup_db(app)
 CORS(app)
 
+
+
+@app.route('/',methods=['POST'])
+@requires_auth('post:drinks')
+def headers(payload):
+    print(payload)
+    return 'Access Granted'
+
+
+
+
+
 '''
 @TODO uncomment the following line to initialize the datbase
 !! NOTE THIS WILL DROP ALL RECORDS AND START YOUR DB FROM SCRATCH
@@ -27,6 +39,13 @@ CORS(app)
     returns status code 200 and json {"success": True, "drinks": drinks} where drinks is the list of drinks
         or appropriate status code indicating reason for failure
 '''
+
+
+@app.route('/drinks',methods=['GET'])
+def get_drinks():
+    drinks = Drink.query.all()
+    drinks = [drink.short() for drink in drinks]
+    return jsonify(drinks)
 
 
 '''
